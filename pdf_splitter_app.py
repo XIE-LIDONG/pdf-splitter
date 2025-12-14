@@ -1,83 +1,92 @@
-
 import streamlit as st
 import PyPDF2
 import zipfile
 import io
 
-# 页面设置
-st.set_page_config(page_title="PDF分割器", page_icon="📄")
+# Page configuration
+st.set_page_config(page_title="PDF Splitter", page_icon="📄")
 
-# 标题
-st.title("📄 PDF分割器")
-st.write("上传PDF，设置页数，自动分割")
+# Title + Signature (same line, signature top-right small font)
+st.markdown(
+    """
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <h1 style='margin: 0;'>📄 PDF Splitter</h1>
+        <p style='color: #666666; font-size: 14px; margin: 0;'>By XIE LI DONG</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-# 1. 文件上传
-uploaded_file = st.file_uploader("选择PDF文件", type="pdf")
+# Description
+st.write("Upload a PDF file, set page count per split file, and split automatically")
+
+# 1. File upload
+uploaded_file = st.file_uploader("Select PDF File", type="pdf")
 
 if uploaded_file:
-    # 显示文件信息
+    # Show file info
     file_size = len(uploaded_file.getvalue()) / 1024 / 1024
-    st.success(f"✅ 已选择: {uploaded_file.name} ({file_size:.1f} MB)")
+    st.success(f"✅ Selected: {uploaded_file.name} ({file_size:.1f} MB)")
     
-    # 2. 设置页数
-    pages = st.number_input("每份多少页", min_value=1, max_value=100, value=15)
+    # 2. Set page count
+    pages = st.number_input("Pages per split file", min_value=1, max_value=100, value=15)
     
-    # 3. 开始按钮
-    if st.button("开始分割", type="primary"):
-        with st.spinner("正在处理..."):
+    # 3. Start button
+    if st.button("Start Splitting", type="primary"):
+        with st.spinner("Processing..."):
             try:
-                # 读取PDF
+                # Read PDF
                 pdf_reader = PyPDF2.PdfReader(uploaded_file)
                 total_pages = len(pdf_reader.pages)
-                st.info(f"📄 总页数: {total_pages}")
+                st.info(f"📄 Total Pages: {total_pages}")
                 
-                # 计算分割数量
+                # Calculate number of split files
                 num_files = (total_pages + pages - 1) // pages
                 
-                # 创建ZIP文件
+                # Create ZIP file
                 zip_buffer = io.BytesIO()
                 
                 with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-                    # 进度条
+                    # Progress bar
                     progress_bar = st.progress(0)
                     
                     for i in range(num_files):
-                        # 计算页码范围
+                        # Calculate page range
                         start = i * pages
                         end = min((i + 1) * pages, total_pages)
                         
-                        # 创建新PDF
+                        # Create new PDF
                         pdf_writer = PyPDF2.PdfWriter()
                         for page_num in range(start, end):
                             pdf_writer.add_page(pdf_reader.pages[page_num])
                         
-                        # 生成文件名
+                        # Generate filename
                         filename = f"part_{i+1:02d}_p{start+1:03d}-{end:03d}.pdf"
                         
-                        # 保存到内存
+                        # Save to memory
                         pdf_data = io.BytesIO()
                         pdf_writer.write(pdf_data)
                         pdf_data.seek(0)
                         
-                        # 添加到ZIP
+                        # Add to ZIP
                         zip_file.writestr(filename, pdf_data.getvalue())
                         
-                        # 更新进度
+                        # Update progress
                         progress_bar.progress((i + 1) / num_files)
                 
-                # 完成
-                st.success(f"✅ 分割完成！共 {num_files} 个文件")
+                # Completion
+                st.success(f"✅ Splitting Completed! Total {num_files} files generated")
                 
-                # 4. 下载按钮
+                # 4. Download button
                 zip_buffer.seek(0)
                 st.download_button(
-                    label="📥 下载所有文件 (ZIP)",
+                    label="📥 Download All Files (ZIP)",
                     data=zip_buffer,
-                    file_name=f"{uploaded_file.name.replace('.pdf', '')}_分割结果.zip",
+                    file_name=f"{uploaded_file.name.replace('.pdf', '')}_split_results.zip",
                     mime="application/zip"
                 )
                 
             except Exception as e:
-                st.error(f"❌ 错误: {str(e)}")
+                st.error(f"❌ Error: {str(e)}")
 else:
-    st.info("请先上传PDF文件")
+    st.info("Please upload a PDF file first")
